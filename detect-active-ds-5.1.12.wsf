@@ -1,0 +1,108 @@
+<job id="Detect-active">
+<script language="VBScript">
+SET objShell = CreateObject("Wscript.shell")
+DIM objExec, strResult, strLine
+DIM Pattern, Status
+Set Pattern = New RegExp
+Pattern.Pattern = "Current Boot status = (.*),"
+
+objShell.LogEvent 0, "Starting detect-active-ds.wsf to see if machine is locked."
+
+'Grab a random delay
+' Max = 30 minutes, min = 30 seconds
+Randomize
+Dim max,min,intDelay
+max=1800000
+min=30000
+intDelay = Int((max-min+1)*Rnd+min)
+
+'Set other Delays, Start delay is how long to wait before checking to see if we are locked
+' Pause delay is how long to wait between launching the different functions
+' Start is set to 45 seconds, and pause is set to 5 minutes
+DIM intStart, intPause
+intStart = 60000
+intPause = 300000
+
+objShell.LogEvent 0, "Delays generated:" & intDelay & " : " & intStart & " : " & intPause
+
+Wscript.sleep(intStart)
+
+objShell.LogEvent 0, "Running ctionoff.exe to see if Driveshield is disabled."
+SET objExec = objShell.Exec("c:\windows\ctionoff.exe /status")
+WHILE objExec.Status <> WshFinished
+ 'wait until command completes
+WEND
+'strResult = objExec.StdOut.ReadAll
+
+Do Until objExec.StdOut.AtEndOfStream
+  strLine = objExec.StdOut.ReadLine
+  IF Pattern.Test(strLine) THEN 
+    Status = Pattern.Replace(strLine, "$1")
+    'Wscript.Echo "Found"
+    objShell.LogEvent 0, "ctionoff.exe command returned and status =" & Status &"."
+  END IF
+Loop
+
+'just to see what's happenin
+'Wscript.Echo Status
+'assume that  Reply From  is unique or first hit is good enough
+
+IF Status = "Enabled" then
+  objShell.LogEvent 0, "Security is enabled, exiting script."
+  Wscript.quit
+END IF
+
+'Wscript.echo "delay is "&intDelay&" And random is "&Rnd
+'Wscript.quit
+
+'IF Pattern.Test(strResult) then Status = Pattern.Replace(strResult, "$1")
+
+'Wscript.Echo Status
+
+DIM strAntivirusUpdate, strEnableAutoUpdates, strOCSNG, strOCSNGService
+strAntivirusUpdate = "C:\Program Files\Symantec\Symantec Endpoint Protection\SepLiveUpdate.exe"
+strEnableAutoUpdate = "net start wuauserv"
+strOCSNGService = "net start ""OCS INVENTORY"""
+strOCSNG = "C:\Program Files\OCS Inventory Agent\OcsInventory.exe /force /debug /PNUM:80 /SERVER:inventory.larl.org"
+'strOCSNG = "c:\Program Files\OCS Inventory Agent\Ocs_contact.exe /S /Force /Nosplash"
+strCClean = "c:\program files\ccleaner\ccleaner.exe /AUTO"
+strDefrag = "C:\Program Files\Defraggler\df.exe c: /QD"
+strAdobePlugin = "C:\WINDOWS\system32\Macromed\Flash\FlashPlayerUpdateService.exe"
+
+if Status = "NOT PROTECTED" then
+Wscript.sleep(intDelay)
+objShell.LogEvent 0, "Running Symantec Antivirus LiveUpdate."
+SET objExec = objShell.Exec(strAntivirusUpdate)
+
+Wscript.sleep(intPause)
+objShell.LogEvent 0, "Enable Windows Auto Update."
+SET objExec = objShell.Exec(strEnableAutoUpdate)
+
+Wscript.sleep(intPause)
+objShell.LogEvent 0, "Starting OCSInventory Service."
+SET objExec = objShell.Exec(strOCSNGService)
+
+Wscript.sleep(30000)
+objShell.LogEvent 0, "Forcing Inventory detection and deployment."
+SET objExec = objShell.Exec(strOCSNG)
+
+Wscript.sleep(intPause)
+objShell.LogEvent 0, "Starting Adobe Flash Player Update Service."
+SET objExec = objShell.Exec(strAdobeplugin)
+
+Wscript.sleep(600000)
+objShell.LogEvent 0, "Starting Adobe Flash Player Update Service."
+SET objExec = objShell.Exec(strAdobeplugin)
+
+Wscript.sleep(intPause*6)
+objShell.LogEvent 0, "Running CCleaner automatic cleanup."
+SET objExec = objShell.Exec(strCClean)
+
+Wscript.sleep(intPause*2)
+objShell.LogEvent 0, "Running Iobits Smart Defrag, Optimized Defrag."
+SET objExec = objShell.Exec(strDefrag)
+
+END IF
+
+</script>
+</job>
